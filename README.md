@@ -22,12 +22,23 @@
 
 ## 🛠 服务端部署 (Server Setup)
 
-### 1. 环境要求
-*   一台拥有公网 IP 的服务器 (Linux)
-*   Node.js (v16+)
-*   有效的 SSL 证书 (例如 Let's Encrypt)
+### 1. 环境准备 (一键安装)
+我们提供了一个脚本来自动安装 Node.js 和 Certbot：
 
-### 2. 配置文件
+```bash
+cd server
+chmod +x install_env.sh
+sudo ./install_env.sh
+```
+
+### 2. 申请 SSL 证书
+代理服务必须使用 HTTPS，因此你需要一个域名和证书。
+```bash
+# 请将 vpn.yourdomain.com 替换为你实际解析到本机的域名
+sudo certbot certonly --standalone -d vpn.yourdomain.com
+```
+
+### 3. 配置文件
 修改 `server/proxy.js` 中的配置：
 
 ```javascript
