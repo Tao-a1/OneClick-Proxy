@@ -1,64 +1,111 @@
 
-// 1. 代理服务器配置
-const CONFIG = {
+// =========================================================
+//  OneClick VPN - API Auth Mode (v19)
+//  策略：API 登录 -> IP 白名单 -> 免密代理
+// =========================================================
+
+// 1. 服务端配置
+const SERVER_HOST = "vpn.lytide.asia";
+const SERVER_PORT = 8083;
+const API_URL = `https://${SERVER_HOST}:${SERVER_PORT}/api/login`;
+
+// 账号密码 (用于 API 登录)
+const CREDENTIALS = {
+    username: "User_3639e5",
+    password: "Pwd_de2d1accd75ac23b"
+};
+
+// 2. 代理配置 (注意：不需要 authCredentials，因为服务器已经把我们 IP 白名单了)
+const PROXY_CONFIG = {
     mode: "fixed_servers",
     rules: {
         singleProxy: {
             scheme: "https",
-            host: "vpn.lytide.asia",
-            port: 8083
+            host: SERVER_HOST,
+            port: SERVER_PORT
         },
-        bypassList: ["localhost", "127.0.0.1", "::1", "baidu.com", "vpn.lytide.asia"] 
+        bypassList: ["localhost", "127.0.0.1", "::1", "baidu.com", SERVER_HOST] 
     }
 };
 
-// 2. 混淆存储的凭据 (Base64: myuser:mypass123)
-const ENCRYPTED_CRED = "bXl1c2VyOm15cGFzczEyMw==";
+const DIRECT_CONFIG = { mode: "direct" };
 
-// 自定义 Base64 解码，确保在 Service Worker 中绝对可用
-function safeDecode(str) {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';
-    let output = '';
-    str = String(str).replace(/=+$/, '');
-    for (let bc = 0, bs = 0, buffer, i = 0; buffer = str.charAt(i++); ~buffer && (bs = bc % 4 ? bs * 64 + buffer : buffer, bc++ % 4) ? output += String.fromCharCode(255 & bs >> (-2 * bc & 6)) : 0) {
-        buffer = chars.indexOf(buffer);
-    }
-    return output;
-}
-
-function getCredentials() {
+// 3. 登录函数 (核心)
+async function performLogin() {
     try {
-        const decoded = safeDecode(ENCRYPTED_CRED);
-        const parts = decoded.split(':');
-        if (parts.length >= 2) {
-            return { username: parts[0], password: parts.slice(1).join(':') };
+        console.log("Attempting API login...");
+        const response = await fetch(API_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(CREDENTIALS)
+        });
+
+        if (!response.ok) {
+            throw new Error(`Server returned ${response.status}`);
         }
-    } catch (e) {
-        console.error("Critical: Credential decode failed", e);
+
+        const data = await response.json();
+        if (data.success) {
+            console.log("Login successful! IP whitelisted:", data.ip);
+            return true;
+        } else {
+            console.error("Login failed:", data.error);
+            return false;
+        }
+    } catch (error) {
+        console.error("Network error during login:", error);
+        return false;
     }
-    // Fallback (failsafe)
-    return { username: "myuser", password: "mypass123" };
 }
 
-// 3. 初始化
-chrome.runtime.onInstalled.addListener(() => {
-    chrome.storage.local.set({ enabled: false });
-    updateIcon(false);
-});
+// 4. 开关逻辑
+async function enableProxy() {
+    // 设置加载中图标（可选）
+    chrome.action.setBadgeText({text: "..."});
+    
+    // 1. 先尝试登录
+    const success = await performLogin();
+    
+    if (success) {
+        // 2. 登录成功，开启代理
+        chrome.proxy.settings.set({value: PROXY_CONFIG, scope: "regular"}, () => {
+            console.log("Proxy Enabled (Whitelisted)");
+            chrome.storage.local.set({ enabled: true });
+            updateIcon(true);
+        });
+        return true;
+    } else {
+        // 3. 登录失败，回滚
+        chrome.action.setBadgeText({text: "ERR"});
+        chrome.action.setBadgeBackgroundColor({color: "#F44336"});
+        chrome.storage.local.set({ enabled: false });
+        return false;
+    }
+}
 
-chrome.runtime.onStartup.addListener(() => {
-    chrome.storage.local.get(['enabled'], (result) => {
-        if (result.enabled) enableProxy();
-        else disableProxy();
+function disableProxy() {
+    chrome.proxy.settings.set({value: DIRECT_CONFIG, scope: "regular"}, () => {
+        console.log("Proxy Disabled");
+        chrome.storage.local.set({ enabled: false });
+        updateIcon(false);
     });
-});
+}
 
-// 4. 消息处理
+// 5. 消息处理
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.command === "toggle_proxy") {
-        if (message.enable) enableProxy();
-        else disableProxy();
-        sendResponse({status: "done"});
+        if (message.enable) {
+            // 异步操作，需要 return true 保持通道
+            enableProxy().then(result => {
+                sendResponse({status: result ? "success" : "error"});
+            });
+            return true; 
+        } else {
+            disableProxy();
+            sendResponse({status: "success"});
+        }
     } else if (message.command === "get_status") {
         chrome.storage.local.get(['enabled'], (result) => {
             sendResponse({enabled: !!result.enabled});
@@ -67,28 +114,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
 });
 
-function enableProxy() {
-    chrome.proxy.settings.set(
-        {value: CONFIG, scope: "regular"},
-        () => {
-            console.log("Proxy ENABLED: HTTPS 8083");
-            chrome.storage.local.set({ enabled: true });
-            updateIcon(true);
-        }
-    );
-}
-
-function disableProxy() {
-    chrome.proxy.settings.set(
-        {value: {mode: "direct"}, scope: "regular"},
-        () => {
-            console.log("Proxy DISABLED");
-            chrome.storage.local.set({ enabled: false });
-            updateIcon(false);
-        }
-    );
-}
-
 function updateIcon(enabled) {
     const text = enabled ? "ON" : "OFF";
     const color = enabled ? "#4CAF50" : "#999999";
@@ -96,21 +121,10 @@ function updateIcon(enabled) {
     chrome.action.setBadgeBackgroundColor({color: color});
 }
 
-// 5. 自动填充密码 (核心修复)
-chrome.webRequest.onAuthRequired.addListener(
-    (details) => {
-        // 仅在代理认证时触发，防止干扰普通网站认证
-        if (details.isProxy === true) {
-            console.log("Providing proxy credentials...");
-            return { authCredentials: getCredentials() };
-        }
-        // 如果不是代理认证，不处理 (return undefined)
-    },
-    {urls: ["<all_urls>"]},
-    ["blocking"]
-);
-
-// 错误日志
-chrome.proxy.onProxyError.addListener((details) => {
-    console.error("Proxy Error:", details);
+// 启动重置
+chrome.runtime.onStartup.addListener(() => {
+    disableProxy();
+});
+chrome.runtime.onInstalled.addListener(() => {
+    disableProxy();
 });

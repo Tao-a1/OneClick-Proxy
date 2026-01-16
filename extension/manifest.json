@@ -1,6 +1,6 @@
 {
-  "name": "OneClick VPN (HTTPS 8083)",
-  "version": "11.0.0",
+  "name": "OneClick VPN (API Auth v19)",
+  "version": "19.0.0",
   "description": "Secure HTTPS Proxy Client",
   "manifest_version": 3,
   "permissions": [
