@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        :root {
+            --bg-color: #1a1b1e;
+            --card-bg: #25262b;
+            --text-primary: #e9ecef;
+            --text-secondary: #909296;
+            --accent-color: #7950f2;
+            --accent-hover: #5f3dc4;
+            --danger-color: #fa5252;
+            --success-color: #40c057;
+        }
+
+        body {
+            width: 280px;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+        }
+
+        #app {
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 220px;
+            transition: all 0.3s ease;
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 24px;
+            width: 100%;
+        }
+
+        .logo {
+            width: 24px;
+            height: 24px;
+            background: var(--accent-color);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+            color: white;
+        }
+
+        .title {
+            font-size: 16px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+
+        /* Status Ring Animation */
+        .status-ring {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: var(--card-bg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+            position: relative;
+            box-shadow: 0 0 0 4px rgba(255,255,255,0.05);
+            transition: all 0.4s ease;
+        }
+
+        .icon-lock {
+            width: 32px;
+            height: 32px;
+            fill: var(--text-secondary);
+            transition: all 0.3s ease;
+        }
+
+        /* ON State Styles */
+        #app.mode-on .status-ring {
+            box-shadow: 0 0 0 4px rgba(64, 192, 87, 0.2);
+            background: rgba(64, 192, 87, 0.1);
+        }
+        #app.mode-on .icon-lock {
+            fill: var(--success-color);
+        }
+
+        /* OFF State Styles */
+        #app.mode-off .status-ring {
+             box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.05);
+        }
+
+        .status-text {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-bottom: 24px;
+            font-weight: 500;
+        }
+        
+        #app.mode-on .status-text {
+            color: var(--success-color);
+        }
+
+        /* Button */
+        .btn {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            outline: none;
+            background-color: var(--card-bg);
+            color: var(--text-primary);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .btn:hover {
+            background-color: #2c2e33;
+        }
+
+        /* Button states */
+        #app.mode-off .btn {
+            background: var(--accent-color);
+            border-color: transparent;
+            color: white;
+        }
+        #app.mode-off .btn:hover {
+            background: var(--accent-hover);
+            transform: translateY(-1px);
+        }
+
+        #app.mode-on .btn {
+            background: transparent;
+            border: 1px solid var(--danger-color);
+            color: var(--danger-color);
+        }
+        #app.mode-on .btn:hover {
+            background: rgba(250, 82, 82, 0.1);
+        }
+
+        .footer {
+            margin-top: auto;
+            padding-top: 20px;
+            font-size: 10px;
+            color: #5c5f66;
+        }
+    </style>
+</head>
+<body>
+    <div id="app" class="mode-off">
+        <div class="header">
+            <div class="logo">P</div>
+            <div class="title">Secure Proxy</div>
+        </div>
+
+        <div class="status-ring">
+            <svg class="icon-lock" viewBox="0 0 24 24">
+                <path d="M12 2C9.243 2 7 4.243 7 7v3H6c-1.103 0-2 .897-2 2v8c0 1.103.897 2 2 2h12c1.103 0 2-.897 2-2v-8c0-1.103-.897-2-2-2h-1V7c0-2.757-2.243-5-5-5zm0 2c1.654 0 3 1.346 3 3v3H9V7c0-1.654 1.346-3 3-3zm0 10c-1.103 0-2-.897-2-2s.897-2 2-2 2 .897 2 2-.897 2-2 2z"/>
+            </svg>
+        </div>
+        
+        <div class="status-text">Ready to Connect</div>
+
+        <button id="toggleBtn" class="btn">Connect Now</button>
+
+        <div class="footer">v2.1 • High Speed Encrypted</div>
+    </div>
+
+    <script src="popup.js"></script>
+</body>
+</html>

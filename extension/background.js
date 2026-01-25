@@ -1,0 +1,123 @@
+
+// =========================================================
+//  OneClick VPN - API Auth Mode (Auto-Configured)
+// =========================================================
+
+// 1. Server Configuration
+const SERVER_HOST = "xin.lytide.asia";
+const SERVER_PORT = 8083;
+const API_URL = `https://${SERVER_HOST}:${SERVER_PORT}/api/login`;
+
+// Credentials (Auto-Generated)
+const CREDENTIALS = {
+    username: "User_3ov8cc",
+    password: "Pwd_ssfu72n9m604bty2"
+};
+
+// 2. Proxy Configuration
+const PROXY_CONFIG = {
+    mode: "fixed_servers",
+    rules: {
+        singleProxy: {
+            scheme: "https",
+            host: SERVER_HOST,
+            port: SERVER_PORT
+        },
+        bypassList: ["localhost", "127.0.0.1", "::1", "baidu.com", SERVER_HOST] 
+    }
+};
+
+const DIRECT_CONFIG = { mode: "direct" };
+
+// 3. Login Logic
+async function performLogin() {
+    try {
+        console.log("Attempting API login...");
+        const response = await fetch(API_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(CREDENTIALS)
+        });
+
+        if (!response.ok) {
+            throw new Error(`Server returned ${response.status}`);
+        }
+
+        const data = await response.json();
+        if (data.success) {
+            console.log("Login successful! IP whitelisted:", data.ip);
+            return true;
+        } else {
+            console.error("Login failed:", data.error);
+            return false;
+        }
+    } catch (error) {
+        console.error("Network error during login:", error);
+        return false;
+    }
+}
+
+// 4. Toggle Logic
+async function enableProxy() {
+    chrome.action.setBadgeText({text: "..."});
+    
+    const success = await performLogin();
+    
+    if (success) {
+        chrome.proxy.settings.set({value: PROXY_CONFIG, scope: "regular"}, () => {
+            console.log("Proxy Enabled (Whitelisted)");
+            chrome.storage.local.set({ enabled: true });
+            updateIcon(true);
+        });
+        return true;
+    } else {
+        chrome.action.setBadgeText({text: "ERR"});
+        chrome.action.setBadgeBackgroundColor({color: "#F44336"});
+        chrome.storage.local.set({ enabled: false });
+        return false;
+    }
+}
+
+function disableProxy() {
+    chrome.proxy.settings.set({value: DIRECT_CONFIG, scope: "regular"}, () => {
+        console.log("Proxy Disabled");
+        chrome.storage.local.set({ enabled: false });
+        updateIcon(false);
+    });
+}
+
+// 5. Messaging
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.command === "toggle_proxy") {
+        if (message.enable) {
+            enableProxy().then(result => {
+                sendResponse({status: result ? "success" : "error"});
+            });
+            return true; 
+        } else {
+            disableProxy();
+            sendResponse({status: "success"});
+        }
+    } else if (message.command === "get_status") {
+        chrome.storage.local.get(['enabled'], (result) => {
+            sendResponse({enabled: !!result.enabled});
+        });
+        return true;
+    }
+});
+
+function updateIcon(enabled) {
+    const text = enabled ? "ON" : "OFF";
+    const color = enabled ? "#4CAF50" : "#999999";
+    chrome.action.setBadgeText({text: text});
+    chrome.action.setBadgeBackgroundColor({color: color});
+}
+
+chrome.runtime.onStartup.addListener(() => {
+    enableProxy();
+});
+chrome.runtime.onInstalled.addListener(() => {
+    enableProxy();
+});
